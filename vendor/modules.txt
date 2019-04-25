@@ -3,3 +3,5 @@ github.com/rs/zerolog
 github.com/rs/zerolog/log
 github.com/rs/zerolog/internal/cbor
 github.com/rs/zerolog/internal/json
+# gopkg.in/yaml.v2 v2.2.2
+gopkg.in/yaml.v2

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"syscall"
 	"time"
@@ -17,8 +18,7 @@ var (
 	err error
 
 	exe string
-
-	bind string
+	cfg Config
 )
 
 func exit() {
@@ -30,26 +30,50 @@ func exit() {
 	}
 }
 
-func main() {
-	defer exit()
-
-	var isDev bool
-	var isWorker bool
-
-	// flags
-	flag.BoolVar(&isDev, "dev", false, "start in dev mode")
-	flag.BoolVar(&isWorker, "worker", false, "start as a worker process (internal only)")
-	flag.Parse()
-
-	// setup zerolog
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, NoColor: !isDev, TimeFormat: time.RFC3339})
-	if isDev {
+func setupZerolog(dev bool) {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, NoColor: !dev, TimeFormat: time.RFC3339})
+	if dev {
 		zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	} else {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
+}
 
-	if isWorker {
+func main() {
+	defer exit()
+
+	// pre-setup zerolog
+	setupZerolog(false)
+
+	// determine executable
+	if exe, err = os.Executable(); err != nil {
+		log.Error().Err(err).Msg("failed to determine executable")
+		return
+	}
+
+	// flags
+	var dev bool
+	var dir string
+	var worker bool
+
+	flag.BoolVar(&dev, "dev", false, "enable dev mode")
+	flag.StringVar(&dir, "dir", "/etc/antsshd", "config base directory, a 'config.yml' file is required")
+	flag.BoolVar(&worker, "worker", false, "start as a worker process (internal only)")
+	flag.Parse()
+
+	// load options
+	if cfg, err = LoadConfigFile(filepath.Join(dir, "config.yml")); err != nil {
+		return
+	}
+
+	// apply dev from cli
+	if dev {
+		cfg.Dev = true
+		setupZerolog(true)
+	}
+
+	// start master / worker
+	if worker {
 		err = workerMain()
 	} else {
 		err = masterMain()
@@ -57,21 +81,16 @@ func main() {
 }
 
 func masterMain() (err error) {
-	// determine executable
-	if exe, err = os.Executable(); err != nil {
-		log.Error().Err(err).Msg("failed to determine executable")
-		return
-	}
-	// TODO: implements options
+	log.Info().Msg("master started")
 	// start listener
 	var l net.Listener
-	if l, err = net.Listen("tcp", "127.0.0.1:8800"); err != nil {
+	if l, err = net.Listen("tcp", cfg.Bind); err != nil {
 		return
 	}
 	defer l.Close()
-	// close chan
+	// chan-close
 	cc := make(chan error, 1)
-	// signal chan
+	// chan-signal
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM)
 	// start loop
@@ -95,14 +114,14 @@ func masterServ(l net.Listener, sc chan error) {
 			break
 		}
 		// handle connection
-		if err := masterExec(c); err != nil {
+		if err := masterFork(c); err != nil {
 			log.Error().Err(err).Msg("failed to handle connection")
 		}
 	}
 	sc <- err
 }
 
-func masterExec(c net.Conn) (err error) {
+func masterFork(c net.Conn) (err error) {
 	defer c.Close()
 	// obtain fd
 	var f *os.File
@@ -123,6 +142,7 @@ func masterExec(c net.Conn) (err error) {
 }
 
 func workerMain() (err error) {
+	log.Info().Msg("worker started")
 	// obtain connection
 	var c net.Conn
 	if c, err = net.FileConn(os.NewFile(3, "connection")); err != nil {
