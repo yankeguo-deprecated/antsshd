@@ -1,2 +1,2 @@
 # antsshd
-SSH daemon with authentication delegated to a remove endpoint
+SSH daemon with authentication delegated to a remote endpoint
