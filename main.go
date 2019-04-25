@@ -2,7 +2,8 @@ package main
 
 import (
 	"flag"
-	"log"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"net"
 	"os"
 	"os/exec"
@@ -16,24 +17,37 @@ var (
 	err error
 
 	exe string
+
+	bind string
 )
 
 func exit() {
 	if err != nil {
-		log.Println("exited with error:", err)
+		log.Error().Err(err).Msg("exited")
 		os.Exit(1)
 	} else {
-		log.Println("exited")
+		log.Info().Msg("exited")
 	}
 }
 
 func main() {
 	defer exit()
 
+	var isDev bool
 	var isWorker bool
 
-	flag.BoolVar(&isWorker, "as-worker", false, "start as a worker process (internal only)")
+	// flags
+	flag.BoolVar(&isDev, "dev", false, "start in dev mode")
+	flag.BoolVar(&isWorker, "worker", false, "start as a worker process (internal only)")
 	flag.Parse()
+
+	// setup zerolog
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout, NoColor: !isDev, TimeFormat: time.RFC3339})
+	if isDev {
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	} else {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	}
 
 	if isWorker {
 		err = workerMain()
@@ -45,7 +59,7 @@ func main() {
 func masterMain() (err error) {
 	// determine executable
 	if exe, err = os.Executable(); err != nil {
-		log.Println("failed to determine executable:", err)
+		log.Error().Err(err).Msg("failed to determine executable")
 		return
 	}
 	// TODO: implements options
@@ -65,9 +79,9 @@ func masterMain() (err error) {
 	// wait for close or signal
 	select {
 	case s := <-sc:
-		log.Println("signal caught:", s)
+		log.Info().Str("signal", s.String()).Msg("signal caught")
 	case err = <-cc:
-		log.Println("listener close unexpected:", err)
+		log.Error().Err(err).Msg("listener closed unexpected")
 	}
 	return
 }
@@ -82,7 +96,7 @@ func masterServ(l net.Listener, sc chan error) {
 		}
 		// handle connection
 		if err := masterExec(c); err != nil {
-			log.Println("failed to handle connection:", err)
+			log.Error().Err(err).Msg("failed to handle connection")
 		}
 	}
 	sc <- err
@@ -93,12 +107,12 @@ func masterExec(c net.Conn) (err error) {
 	// obtain fd
 	var f *os.File
 	if f, err = c.(*net.TCPConn).File(); err != nil {
-		log.Println("failed to retrieve connection fd:", err)
+		log.Error().Err(err).Msg("failed to obtain connection fd")
 		return
 	}
 	defer f.Close()
 	// spawn worker
-	cmd := exec.Command(exe, "-as-worker")
+	cmd := exec.Command(exe, append([]string{"-worker"}, os.Args[1:]...)...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.ExtraFiles = []*os.File{f}
@@ -109,10 +123,10 @@ func masterExec(c net.Conn) (err error) {
 }
 
 func workerMain() (err error) {
-	// retrieve connection
+	// obtain connection
 	var c net.Conn
 	if c, err = net.FileConn(os.NewFile(3, "connection")); err != nil {
-		log.Println("failed to retrieve connection:", err)
+		log.Error().Err(err).Msg("failed to obtain connection")
 		return
 	}
 	defer c.Close()
@@ -124,7 +138,7 @@ func workerMain() (err error) {
 	for i := 0; i < 5; i++ {
 		time.Sleep(time.Second)
 		if _, err = c.Write([]byte(strconv.Itoa(i) + "\r\n")); err != nil {
-			log.Println("failed to write connection:", err)
+			log.Error().Err(err).Msg("failed to write connection")
 			return
 		}
 	}
