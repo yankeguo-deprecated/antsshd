@@ -65,6 +65,16 @@ func LoadConfigFile(file string) (o Config, err error) {
 	return
 }
 
+func (c Config) CreateEndpoint() (*Endpoint, error) {
+	return NewEndpoint(EndpointOptions{
+		Hostname:       c.Hostname,
+		URL:            c.Endpoint.URL,
+		ExtraCAFile:    c.Endpoint.CA,
+		ClientCertFile: c.Endpoint.Cert,
+		ClientKeyFile:  c.Endpoint.Key,
+	})
+}
+
 func defaultStr(v *string, defaultValue string) {
 	*v = strings.TrimSpace(*v)
 	if len(*v) == 0 {
