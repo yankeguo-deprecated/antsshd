@@ -82,6 +82,10 @@ func main() {
 
 func masterMain() (err error) {
 	log.Info().Msg("master started")
+	// preload host keys
+	if _, err = cfg.CreateSigners(); err != nil {
+		return
+	}
 	// start listener
 	var l net.Listener
 	if l, err = net.Listen("tcp", cfg.Bind); err != nil {
