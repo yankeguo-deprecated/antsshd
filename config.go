@@ -18,20 +18,24 @@ func init() {
 }
 
 type Config struct {
-	Dev         bool           `yaml:"dev"`
-	Hostname    string         `yaml:"hostname"`
-	Bind        string         `yaml:"bind"`
-	HostRsa     string         `yaml:"host_rsa"`
-	HostEcdsa   string         `yaml:"host_ecdsa"`
-	HostEd25519 string         `yaml:"host_ed25519"`
-	Endpoint    EndpointConfig `yaml:"endpoint"`
+	Dev      bool           `yaml:"dev"`
+	Hostname string         `yaml:"hostname"`
+	Bind     string         `yaml:"bind"`
+	HostKeys ConfigHostKeys `yaml:"host_keys"`
+	Endpoint ConfigEndpoint `yaml:"endpoint"`
 }
 
-type EndpointConfig struct {
+type ConfigEndpoint struct {
 	URL  string `yaml:"url"`
 	CA   string `yaml:"ca"`
 	Cert string `yaml:"cert"`
 	Key  string `yaml:"key"`
+}
+
+type ConfigHostKeys struct {
+	RSA     string `yaml:"rsa"`
+	ECDSA   string `yaml:"ecdsa"`
+	ED25519 string `yaml:"ed25519"`
 }
 
 func LoadConfigFile(file string) (o Config, err error) {
@@ -48,12 +52,12 @@ func LoadConfigFile(file string) (o Config, err error) {
 		return
 	}
 	defaultStr(&o.Bind, "0.0.0.0:2222")
-	defaultStr(&o.HostRsa, "host_rsa")
-	resolveRelative(&o.HostRsa, file)
-	defaultStr(&o.HostEcdsa, "host_ecdsa")
-	resolveRelative(&o.HostEcdsa, file)
-	defaultStr(&o.HostEd25519, "host_ed25519")
-	resolveRelative(&o.HostEd25519, file)
+	defaultStr(&o.HostKeys.RSA, "host_rsa")
+	resolveRelative(&o.HostKeys.RSA, file)
+	defaultStr(&o.HostKeys.ECDSA, "host_ecdsa")
+	resolveRelative(&o.HostKeys.ECDSA, file)
+	defaultStr(&o.HostKeys.ED25519, "host_ed25519")
+	resolveRelative(&o.HostKeys.ED25519, file)
 	defaultStr(&o.Endpoint.URL, "http://127.0.0.1:2223")
 	resolveRelative(&o.Endpoint.CA, file)
 	resolveRelative(&o.Endpoint.Cert, file)

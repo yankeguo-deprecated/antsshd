@@ -1,9 +1,10 @@
 # bind
 bind: 127.0.0.1:2222
 # host keys
-host_rsa: host_rsa
-host_ecdsa: host_ecdsa
-host_ed25519: host_ed25519
+host_keys:
+  rsa: host_rsa
+  ecdsa: host_ecdsa
+  ed25519: host_ed25519
 # endpoint
 endpoint:
   url: http://127.0.0.1:2223
