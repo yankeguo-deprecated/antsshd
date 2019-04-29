@@ -55,11 +55,8 @@ func LoadConfigFile(file string) (o Config, err error) {
 	defaultStr(&o.HostEd25519, "host_ed25519")
 	resolveRelative(&o.HostEd25519, file)
 	defaultStr(&o.Endpoint.URL, "http://127.0.0.1:2223")
-	defaultStr(&o.Endpoint.CA, "ca.pem")
 	resolveRelative(&o.Endpoint.CA, file)
-	defaultStr(&o.Endpoint.Cert, "cert.pem")
 	resolveRelative(&o.Endpoint.Cert, file)
-	defaultStr(&o.Endpoint.Key, "key.pem")
 	resolveRelative(&o.Endpoint.Key, file)
 	return
 }

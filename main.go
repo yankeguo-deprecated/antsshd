@@ -132,6 +132,8 @@ func masterFork(c net.Conn) (err error) {
 	defer f.Close()
 	// spawn worker
 	cmd := exec.Command(exe, append([]string{"-worker"}, os.Args[1:]...)...)
+	cmd.Dir, _ = os.Getwd()
+	cmd.Env = os.Environ()
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.ExtraFiles = []*os.File{f}

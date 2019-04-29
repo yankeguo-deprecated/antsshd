@@ -8,35 +8,62 @@ SSH daemon with authentication delegated to a remote endpoint.
 
 See `testdata/config.yml` for detail
 
-## Authentication Protocol
+## AntSSH Authentication Protocol
 
 Every time a client try to connect `antsshd` (or create a new ssh channel), `antsshd` will ask remote endpoint for permission.
+
+The request `antssh` will send:
 
 ```text
 POST http://example.com/antssh-endpoint
 
 {
     "hostname"  : "app1.example.com"    // hostname, can be overridden in config.yml
-    "user"      : "root",               // the linux user which client want to log in
-    "public_key": "SHA256:sP1TWp04iqpM5h87qiVa5TtAWiCOlC95/FYiPe7M3hk",     // sha256 fingerprint of the client
-    "type": "handshake",                // possible values are "handshake", "session", "direct-tcpip", "forward-tcpip", see below
+    "user"      : "root",               // linux user to login
+    "public_key": "SHA256:sP1TWp04iqpM5h87qiVa5TtAWiCOlC95/FYiPe7M3hk",     // fingerprint of the client public key
+    "type"      : "connect",            // possible values are "connect", "execute", "proxy", "forward", see below
 
-    // type "handshake", the initial stage of ssh connection
+    // "connect", initialize a ssh connection
     //
-    // handshake has no extra parameters
+    // "connect" has no extra parameters
 
-    // type "session", when client execute command `ssh app1.example.com`
+    // "execute", client want to start a terminal, execute a command or invoke a subsystem
     //
-    // session has no extra parameters
+    // "execute" has no extra parameters
 
-    // type "direct-tcpip", client want to create a tcp connection using 'antsshd' as a proxy
+    // "proxy", client want to proxy a tcp connection (with 'ssh -L' command)
     //
-    "target_host": "app2.example.com",  // target host of direct-tcpip
-    "target_port": 80,                  //  target port of direct-tcpip
+    "proxy": {
+        "host": "target.example.com",
+        "port": 80
+    },
 
-    // type "forward-tcpip", client want to listen a port on this server
+    // "forward", client want to forward a port on server (with 'ssh -R' command)
     //
-    "bind_host": "localhost",           // bind host of forward-tcpip
-    "bind_port": 80,                    // bind port of forward-tcpip
+    "forward": {
+        "host": "0.0.0.0",
+        "port": 80
+    }
 }
 ```
+
+The response an endpoint should reply:
+
+```text
+* HTTP 200, endpoint granted, `antsshd` will proceed the action
+
+Plain Text: ok
+
+* HTTP 400, endpoint denied, `antsshd` will refuse to proceed the action
+
+Plain Text: error message
+
+* HTTP 500, unexpected error occurred, `antsshd` will refuse to proceed the action
+
+Anything
+
+```
+
+## Credits
+
+Yanke Guo, MIT License
