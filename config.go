@@ -1,26 +1,37 @@
 package main
 
 import (
+	"errors"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 )
 
-type Config struct {
-	Dev         bool              `yaml:"dev"`
-	Bind        string            `yaml:"bind"`
-	HostRsa     string            `yaml:"host_rsa"`
-	HostEcdsa   string            `yaml:"host_ecdsa"`
-	HostEd25519 string            `yaml:"host_ed25519"`
-	Endpoint    string            `yaml:"endpoint"`
-	EndpointTLS EndpointTLSConfig `yaml:"endpoint_tls"`
+var (
+	hostname string
+)
+
+func init() {
+	hostname, _ = os.Hostname()
 }
 
-type EndpointTLSConfig struct {
-	ServerCACert string `yaml:"server_ca_cert"`
-	ClientCert   string `yaml:"client_cert"`
-	ClientKey    string `yaml:"client_key"`
+type Config struct {
+	Dev         bool           `yaml:"dev"`
+	Hostname    string         `yaml:"hostname"`
+	Bind        string         `yaml:"bind"`
+	HostRsa     string         `yaml:"host_rsa"`
+	HostEcdsa   string         `yaml:"host_ecdsa"`
+	HostEd25519 string         `yaml:"host_ed25519"`
+	Endpoint    EndpointConfig `yaml:"endpoint"`
+}
+
+type EndpointConfig struct {
+	URL  string `yaml:"url"`
+	CA   string `yaml:"ca"`
+	Cert string `yaml:"cert"`
+	Key  string `yaml:"key"`
 }
 
 func LoadConfigFile(file string) (o Config, err error) {
@@ -31,6 +42,11 @@ func LoadConfigFile(file string) (o Config, err error) {
 	if err = yaml.Unmarshal(buf, &o); err != nil {
 		return
 	}
+	defaultStr(&o.Hostname, hostname)
+	if len(o.Hostname) == 0 {
+		err = errors.New("failed to get hostname")
+		return
+	}
 	defaultStr(&o.Bind, "0.0.0.0:2222")
 	defaultStr(&o.HostRsa, "host_rsa")
 	resolveRelative(&o.HostRsa, file)
@@ -38,13 +54,13 @@ func LoadConfigFile(file string) (o Config, err error) {
 	resolveRelative(&o.HostEcdsa, file)
 	defaultStr(&o.HostEd25519, "host_ed25519")
 	resolveRelative(&o.HostEd25519, file)
-	defaultStr(&o.Endpoint, "http://127.0.0.1:2223")
-	defaultStr(&o.EndpointTLS.ServerCACert, "server_ca_cert")
-	resolveRelative(&o.EndpointTLS.ServerCACert, file)
-	defaultStr(&o.EndpointTLS.ClientCert, "client_cert")
-	resolveRelative(&o.EndpointTLS.ClientCert, file)
-	defaultStr(&o.EndpointTLS.ClientKey, "client_key")
-	resolveRelative(&o.EndpointTLS.ClientKey, file)
+	defaultStr(&o.Endpoint.URL, "http://127.0.0.1:2223")
+	defaultStr(&o.Endpoint.CA, "ca.pem")
+	resolveRelative(&o.Endpoint.CA, file)
+	defaultStr(&o.Endpoint.Cert, "cert.pem")
+	resolveRelative(&o.Endpoint.Cert, file)
+	defaultStr(&o.Endpoint.Key, "key.pem")
+	resolveRelative(&o.Endpoint.Key, file)
 	return
 }
 

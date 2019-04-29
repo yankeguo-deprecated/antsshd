@@ -5,4 +5,5 @@ host_rsa: host_rsa
 host_ecdsa: host_ecdsa
 host_ed25519: host_ed25519
 # endpoint
-endpoint: http://127.0.0.1:2223
+endpoint:
+  url: http://127.0.0.1:2223
