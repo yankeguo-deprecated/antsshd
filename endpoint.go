@@ -14,10 +14,23 @@ import (
 	"strings"
 )
 
-type Endpoint struct {
-	hostname string
-	url      string
-	client   *http.Client
+type EndpointRequestProxy struct {
+	Host string `json:"host"`
+	Port int    `json:"port"`
+}
+
+type EndpointRequestForward struct {
+	Host string `json:"host"`
+	Port int    `json:"port"`
+}
+
+type EndpointRequest struct {
+	Hostname  string                 `json:"hostname"`
+	User      string                 `json:"user"`
+	PublicKey string                 `json:"public_key"`
+	Type      string                 `json:"type"`
+	Proxy     EndpointRequestProxy   `json:"proxy"`
+	Forward   EndpointRequestForward `json:"forward"`
 }
 
 type EndpointOptions struct {
@@ -26,6 +39,12 @@ type EndpointOptions struct {
 	ExtraCAFile    string
 	ClientCertFile string
 	ClientKeyFile  string
+}
+
+type Endpoint struct {
+	hostname string
+	url      string
+	client   *http.Client
 }
 
 func NewEndpoint(opts EndpointOptions) (e *Endpoint, err error) {
