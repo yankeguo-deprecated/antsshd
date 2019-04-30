@@ -37,6 +37,7 @@ func TestLoadOrGenerateRSASigner(t *testing.T) {
 	}
 
 	fp := ssh.FingerprintSHA256(s.PublicKey())
+	t.Logf("fp: %s\n", fp)
 
 	if s, g, err = LoadOrGenerateRSASigner(f); err != nil {
 		t.Fatal(err)
@@ -66,6 +67,7 @@ func TestLoadOrGenerateECDSASigner(t *testing.T) {
 	}
 
 	fp := ssh.FingerprintSHA256(s.PublicKey())
+	t.Logf("fp: %s\n", fp)
 
 	if s, g, err = LoadOrGenerateECDSASigner(f); err != nil {
 		t.Fatal(err)
@@ -95,6 +97,7 @@ func TestLoadOrGenerateEd25519Signer(t *testing.T) {
 	}
 
 	fp := ssh.FingerprintSHA256(s.PublicKey())
+	t.Logf("fp: %s\n", fp)
 
 	if s, g, err = LoadOrGenerateEd25519Signer(f); err != nil {
 		t.Fatal(err)

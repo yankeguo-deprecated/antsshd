@@ -4,12 +4,12 @@ import (
 	"flag"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/crypto/ssh"
 	"net"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"syscall"
 	"time"
 )
@@ -149,6 +149,42 @@ func masterFork(c net.Conn) (err error) {
 
 func workerMain() (err error) {
 	log.Info().Msg("worker started")
+
+	// ignore SIGINT/SIGTERM
+	discardSignals()
+
+	// create ssh config
+	sshCfg := &ssh.ServerConfig{}
+
+	// create signers
+	var signers []ssh.Signer
+	if signers, err = cfg.CreateSigners(); err != nil {
+		return
+	}
+
+	for _, s := range signers {
+		sshCfg.AddHostKey(s)
+	}
+
+	// create endpoint
+	var endpoint *Endpoint
+	if endpoint, err = cfg.CreateEndpoint(); err != nil {
+		return
+	}
+
+	sshCfg.PublicKeyCallback = func(conn ssh.ConnMetadata, key ssh.PublicKey) (perm *ssh.Permissions, e error) {
+		pk := ssh.FingerprintSHA256(key)
+		e = endpoint.CanConnect(conn.User(), pk)
+		perm = &ssh.Permissions{
+			Extensions: map[string]string{"pk": pk},
+		}
+		return
+	}
+
+	sshCfg.BannerCallback = func(conn ssh.ConnMetadata) string {
+		return "welcome to antsshd"
+	}
+
 	// obtain connection
 	var c net.Conn
 	if c, err = net.FileConn(os.NewFile(3, "connection")); err != nil {
@@ -157,17 +193,19 @@ func workerMain() (err error) {
 	}
 	defer c.Close()
 
-	// ignore SIGINT/SIGTERM
-	discardSignals()
-
-	// TODO: implements worker
-	for i := 0; i < 5; i++ {
-		time.Sleep(time.Second)
-		if _, err = c.Write([]byte(strconv.Itoa(i) + "\r\n")); err != nil {
-			log.Error().Err(err).Msg("failed to write connection")
-			return
-		}
+	// upgrade connection
+	var sc *ssh.ServerConn
+	var nc <-chan ssh.NewChannel
+	var gr <-chan *ssh.Request
+	if sc, nc, gr, err = ssh.NewServerConn(c, sshCfg); err != nil {
+		return
 	}
+	defer sc.Close()
+
+	// TODO: handle nc, gr
+	_ = nc
+	_ = gr
+
 	return
 }
 
