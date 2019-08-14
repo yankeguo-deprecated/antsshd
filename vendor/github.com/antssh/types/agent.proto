@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package antssh;
+option go_package = ".;types";
+
+message AgentPingReq {
+    string agent_id = 1; // id, basically unique random hex string, preventing accidentally hostname collision
+    string hostname = 2; // hostname of the agent, should be unique
+    uint32 port     = 3; // port of the antssh agent, address will be calculated automatically
+}
+
+message AgentPingResp {
+    bool success    = 1;
+    string message  = 2;
+}
+
+message AgentAuthReq {
+    string fingerprint  = 1; // sha256 fingerprint of public key, "SHA256:xxxxx" for example
+
+    string user         = 2; // user to login
+    string hostname     = 3; // hostname of the AntSSH Agent
+
+    enum Action {
+        CONNECT = 0; // connect the AntSSH instance
+        EXECUTE = 1; // init a shell or execute command
+        PROXY   = 2; // proxy tcp connection, i.e. "SSH -L" command
+        FORWARD = 3; // forward tcp connections, i.e. "SSH -R" command
+    }
+    Action action       = 4;
+
+    oneof payload {
+        string command  = 5; // only used for 'execute', empty for SSH shell
+        string address  = 6; // only used for 'proxy' or 'forward', "192.168.0.1:8080" for example
+    }
+}
+
+message AgentAuthResp {
+    bool success        = 1;
+    string message      = 2;
+    string record_id    = 3; // unique session id for recording
+}
+
+message AgentRecordReq {
+    string record_id    = 1; // unique session id from auth response
+    uint64 timestamp    = 2; // milliseconds from 0, shall never decrease
+
+    enum Type {
+        STDOUT  = 0;
+        STDERR  = 1;
+        WINSIZE = 2;
+    }
+    Type type = 3;
+
+    message WinSize {
+        int32 width     = 1;
+        int32 height    = 2;
+    }
+
+    oneof payload {
+        bytes data      = 4;
+        WinSize size    = 5;
+    }
+}
+
+message AgentRecordResp {
+    bool success    = 1;
+    string message  = 2;
+}
+
+service Agent {
+
+    rpc Ping(AgentPingReq) returns (AgentPingResp) {}
+
+    rpc Auth(AgentAuthReq) returns (AgentAuthResp) {}
+
+    rpc Record(stream AgentRecordReq) returns (AgentRecordResp) {}
+
+}

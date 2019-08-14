@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"flag"
+	"github.com/antssh/types"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/ssh"
@@ -52,28 +55,27 @@ func main() {
 	}
 
 	// flags
-	var dev bool
-	var dir string
-	var worker bool
+	var optDev bool
+	var optDir string
+	var optWorker bool
 
-	flag.BoolVar(&dev, "dev", false, "enable dev mode")
-	flag.StringVar(&dir, "dir", "/etc/antsshd", "config base directory, a 'config.yml' file is required")
-	flag.BoolVar(&worker, "worker", false, "start as a worker process (internal only)")
+	flag.BoolVar(&optDev, "dev", false, "enable dev mode")
+	flag.StringVar(&optDir, "dir", "/etc/antsshd", "config base directory, a 'config.yml' file is required")
+	flag.BoolVar(&optWorker, "worker", false, "start as a worker process (internal only)")
 	flag.Parse()
 
 	// load options
-	if cfg, err = LoadConfigFile(filepath.Join(dir, "config.yml")); err != nil {
+	if cfg, err = LoadConfigFile(filepath.Join(optDir, "config.yml")); err != nil {
 		return
 	}
 
 	// apply dev from cli
-	if dev {
-		cfg.Dev = true
+	if cfg.Dev = cfg.Dev || optDev; cfg.Dev {
 		setupZerolog(true)
 	}
 
 	// start master / worker
-	if worker {
+	if optWorker {
 		err = workerMain()
 	} else {
 		err = masterMain()
@@ -83,7 +85,7 @@ func main() {
 func masterMain() (err error) {
 	log.Info().Msg("master started")
 	// preload host keys
-	if _, err = cfg.CreateSigners(); err != nil {
+	if _, err = cfg.CreateSigners(true); err != nil {
 		return
 	}
 	// start listener
@@ -158,7 +160,7 @@ func workerMain() (err error) {
 
 	// create signers
 	var signers []ssh.Signer
-	if signers, err = cfg.CreateSigners(); err != nil {
+	if signers, err = cfg.CreateSigners(false); err != nil {
 		return
 	}
 
@@ -167,18 +169,30 @@ func workerMain() (err error) {
 	}
 
 	// create endpoint
-	var endpoint *Endpoint
-	if endpoint, err = cfg.CreateEndpoint(); err != nil {
+	var client types.AgentClient
+	if client, err = cfg.CreateAgentClient(); err != nil {
 		return
 	}
 
-	sshCfg.PublicKeyCallback = func(conn ssh.ConnMetadata, key ssh.PublicKey) (perm *ssh.Permissions, e error) {
-		pk := ssh.FingerprintSHA256(key)
-		e = endpoint.CanConnect(conn.User(), pk)
-		perm = &ssh.Permissions{
-			Extensions: map[string]string{"pk": pk},
+	sshCfg.PublicKeyCallback = func(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+		fp := ssh.FingerprintSHA256(key)
+		if resp, err := client.Auth(context.Background(), &types.AgentAuthReq{
+			Fingerprint: fp,
+			User:        conn.User(),
+			Hostname:    cfg.Hostname,
+			Action:      types.AgentAuthReq_CONNECT,
+		}); err != nil {
+			return nil, err
+		} else if !resp.Success {
+			return nil, errors.New("auth not success: " + resp.Message)
+		} else {
+			return &ssh.Permissions{
+				Extensions: map[string]string{
+					"Fingerprint": fp,
+					"RecordID":    resp.RecordId,
+				},
+			}, nil
 		}
-		return
 	}
 
 	sshCfg.BannerCallback = func(conn ssh.ConnMetadata) string {

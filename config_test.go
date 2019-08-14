@@ -14,7 +14,7 @@ func TestLoadOptionsFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = c.CreateSigners(); err != nil {
+	if _, err = c.CreateSigners(true); err != nil {
 		t.Fatal(err)
 	}
 	fmt.Println(c)
@@ -29,7 +29,7 @@ func TestLoadOrGenerateRSASigner(t *testing.T) {
 	var err error
 	var g bool
 
-	if s, g, err = LoadOrGenerateRSASigner(f); err != nil {
+	if s, g, err = createRSASigner(f, true); err != nil {
 		t.Fatal(err)
 	}
 	if !g {
@@ -39,7 +39,7 @@ func TestLoadOrGenerateRSASigner(t *testing.T) {
 	fp := ssh.FingerprintSHA256(s.PublicKey())
 	t.Logf("fp: %s\n", fp)
 
-	if s, g, err = LoadOrGenerateRSASigner(f); err != nil {
+	if s, g, err = createRSASigner(f, true); err != nil {
 		t.Fatal(err)
 	}
 	if g {
@@ -59,7 +59,7 @@ func TestLoadOrGenerateECDSASigner(t *testing.T) {
 	var err error
 	var g bool
 
-	if s, g, err = LoadOrGenerateECDSASigner(f); err != nil {
+	if s, g, err = createECDSASigner(f, true); err != nil {
 		t.Fatal(err)
 	}
 	if !g {
@@ -69,7 +69,7 @@ func TestLoadOrGenerateECDSASigner(t *testing.T) {
 	fp := ssh.FingerprintSHA256(s.PublicKey())
 	t.Logf("fp: %s\n", fp)
 
-	if s, g, err = LoadOrGenerateECDSASigner(f); err != nil {
+	if s, g, err = createECDSASigner(f, true); err != nil {
 		t.Fatal(err)
 	}
 	if g {
@@ -89,7 +89,7 @@ func TestLoadOrGenerateEd25519Signer(t *testing.T) {
 	var err error
 	var g bool
 
-	if s, g, err = LoadOrGenerateEd25519Signer(f); err != nil {
+	if s, g, err = createEd25519Signer(f, true); err != nil {
 		t.Fatal(err)
 	}
 	if !g {
@@ -99,7 +99,7 @@ func TestLoadOrGenerateEd25519Signer(t *testing.T) {
 	fp := ssh.FingerprintSHA256(s.PublicKey())
 	t.Logf("fp: %s\n", fp)
 
-	if s, g, err = LoadOrGenerateEd25519Signer(f); err != nil {
+	if s, g, err = createEd25519Signer(f, true); err != nil {
 		t.Fatal(err)
 	}
 	if g {

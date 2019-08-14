@@ -7,4 +7,4 @@ host_keys:
   ed25519: host_ed25519
 # endpoint
 endpoint:
-  url: http://127.0.0.1:2223
+  addr: 127.0.0.1:2223
