@@ -169,7 +169,7 @@ func workerMain() (err error) {
 	}
 
 	// create endpoint
-	var client types.AgentClient
+	var client types.AgentControllerClient
 	if client, err = cfg.CreateAgentClient(); err != nil {
 		return
 	}

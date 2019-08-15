@@ -230,7 +230,7 @@ func (c Config) createTLSConfig() (tlsCfg *tls.Config, err error) {
 	return
 }
 
-func (c Config) CreateAgentClient() (client types.AgentClient, err error) {
+func (c Config) CreateAgentClient() (client types.AgentControllerClient, err error) {
 	var opts []grpc.DialOption
 	if c.Endpoint.Secure {
 		var tlsCfg *tls.Config
@@ -245,7 +245,7 @@ func (c Config) CreateAgentClient() (client types.AgentClient, err error) {
 	if conn, err = grpc.Dial(c.Endpoint.Addr, opts...); err != nil {
 		return
 	}
-	client = types.NewAgentClient(conn)
+	client = types.NewAgentControllerClient(conn)
 	return
 }
 
